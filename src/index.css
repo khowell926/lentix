@@ -1,0 +1,202 @@
+/* ============================================================
+   Lentix — "Slate & Steel" design tokens
+   Dark-first. Outfit typography. Bento-grid surfaces.
+   ============================================================ */
+:root {
+  /* base surfaces */
+  --bg-0: #0a0e1a; /* app background */
+  --bg-1: #0f1525; /* panel */
+  --bg-2: #161d31; /* card */
+  --bg-3: #1e2742; /* raised / hover */
+  --border: #263150;
+  --border-strong: #38456b;
+
+  /* ink */
+  --ink-0: #f4f7ff;
+  --ink-1: #c2cbe2;
+  --ink-2: #8a97b8;
+  --ink-3: #5e6a8a;
+
+  /* steel accent (brand) */
+  --steel: #3b82f6;
+  --steel-bright: #60a5fa;
+  --steel-dim: rgba(59, 130, 246, 0.14);
+  --violet: #8b5cf6;
+
+  /* opportunity tiers */
+  --hot: #ff4d5e;
+  --hot-soft: rgba(255, 77, 94, 0.16);
+  --warm: #ffb020;
+  --warm-soft: rgba(255, 176, 32, 0.16);
+  --watch: #38bdf8;
+  --watch-soft: rgba(56, 189, 248, 0.16);
+
+  --ok: #22c55e;
+  --ok-soft: rgba(34, 197, 94, 0.16);
+
+  --radius: 14px;
+  --radius-sm: 10px;
+  --shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 24px 70px rgba(0, 0, 0, 0.55);
+
+  font-family: "Outfit", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background:
+    radial-gradient(1200px 600px at 85% -10%, rgba(59, 130, 246, 0.1), transparent 60%),
+    radial-gradient(900px 500px at -10% 110%, rgba(139, 92, 246, 0.08), transparent 60%),
+    var(--bg-0);
+  color: var(--ink-1);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1, h2, h3, h4 {
+  color: var(--ink-0);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+a {
+  color: var(--steel-bright);
+  text-decoration: none;
+}
+a:hover { text-decoration: underline; }
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 8px;
+  border: 2px solid var(--bg-0);
+}
+
+/* ---------- App shell ---------- */
+.app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 22px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(10, 14, 26, 0.7);
+  backdrop-filter: blur(10px);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  color: var(--ink-0);
+  font-size: 15px;
+}
+.brand .mark {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--steel), var(--violet));
+  display: grid;
+  place-items: center;
+  font-size: 14px;
+  box-shadow: 0 0 18px rgba(59, 130, 246, 0.45);
+}
+.brand small {
+  display: block;
+  font-size: 9px;
+  letter-spacing: 0.28em;
+  color: var(--ink-3);
+  font-weight: 500;
+}
+
+.tabs {
+  display: flex;
+  gap: 4px;
+  margin-left: 12px;
+  background: var(--bg-1);
+  padding: 4px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+}
+.tab {
+  border: 0;
+  background: transparent;
+  color: var(--ink-2);
+  font-weight: 600;
+  font-size: 13px;
+  padding: 8px 16px;
+  border-radius: 9px;
+  transition: all 0.15s ease;
+}
+.tab:hover { color: var(--ink-0); }
+.tab.active {
+  background: var(--steel-dim);
+  color: var(--steel-bright);
+  box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.4);
+}
+
+.topbar-spacer { flex: 1; }
+.topbar-meta {
+  font-size: 12px;
+  color: var(--ink-3);
+  text-align: right;
+  line-height: 1.5;
+}
+.topbar-meta b { color: var(--ink-1); font-weight: 600; }
+
+.content {
+  flex: 1;
+  padding: 18px 22px 28px;
+}
+
+/* ---------- shared chips / badges ---------- */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  color: var(--ink-1);
+  background: var(--bg-2);
+  white-space: nowrap;
+}
+.chip .dot { width: 7px; height: 7px; border-radius: 50%; }
+
+.tier-hot { color: var(--hot); background: var(--hot-soft); border-color: rgba(255, 77, 94, 0.4); }
+.tier-warm { color: var(--warm); background: var(--warm-soft); border-color: rgba(255, 176, 32, 0.4); }
+.tier-watch { color: var(--watch); background: var(--watch-soft); border-color: rgba(56, 189, 248, 0.4); }
+
+.dot-hot { background: var(--hot); }
+.dot-warm { background: var(--warm); }
+.dot-watch { background: var(--watch); }
