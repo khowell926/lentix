@@ -1,0 +1,7 @@
+# Supabase project config (edge functions only for this app).
+# Set `project_id` to your linked project ref before deploying.
+project_id = "lentix"
+
+[functions.lead-deep-dive]
+# Public research endpoint called by the frontend; no Supabase JWT required.
+verify_jwt = false

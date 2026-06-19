@@ -17,10 +17,10 @@ import { readJSON, writeJSON } from "@/lib/storage";
  * via the Lovable AI Gateway, with a clickable source receipt + verified
  * timestamp on every fact.
  *
- * This client build ships a deterministic simulation behind the same async
- * contract so the UI is fully exercised without server secrets. Swap
- * `runResearch` for a real `fetch('/functions/lead-deep-dive')` call and the
- * components are unchanged.
+ * When `VITE_DEEP_DIVE_URL` points at the deployed/served edge function, this
+ * runs LIVE — `runDeepDive` POSTs the lead to it and renders the real Firecrawl
+ * + AI result. With no endpoint configured (or if the live call fails) it falls
+ * back to the deterministic simulation below so the UI always works.
  */
 
 const CACHE_PREFIX = "lentix.deepdive.";
@@ -164,21 +164,80 @@ export function cachedResult(leadId: string): DeepDiveResult | null {
   return readJSON<DeepDiveResult | null>(CACHE_PREFIX + leadId, null);
 }
 
+/** URL of the live lead-deep-dive edge function, if configured. */
+export function deepDiveEndpoint(): string | undefined {
+  const url = import.meta.env.VITE_DEEP_DIVE_URL?.trim();
+  return url ? url : undefined;
+}
+
+/** True when the live Firecrawl + AI endpoint is wired up. */
+export function isLiveEnabled(): boolean {
+  return Boolean(deepDiveEndpoint());
+}
+
 /**
- * Runs the research agent for a lead, emitting progress, and resolving with the
- * structured Deep-Dive result. Results are cached per-company in localStorage.
+ * Drives the visual step pipeline on a timer while an async call is in flight.
+ * Steps advance over time but the final step stays "running" until `finish()`.
  */
-export async function runDeepDive(lead: Lead, opts: RunOptions = {}): Promise<DeepDiveResult> {
-  const { refresh = false, onProgress, stepDelayMs = 520 } = opts;
+function progressDriver(onProgress?: (s: AgentStep[]) => void, stepDelayMs = 520) {
+  const steps: AgentStep[] = PIPELINE_STEPS.map((label) => ({ label, status: "pending" }));
+  const emit = () => onProgress?.(steps.map((s) => ({ ...s })));
+  let i = 0;
+  const advance = () => {
+    if (i > 0) steps[i - 1].status = "done";
+    if (i < steps.length) steps[i].status = "running";
+    emit();
+    i++;
+  };
+  advance();
+  const timer = setInterval(() => {
+    if (i < steps.length) advance();
+  }, stepDelayMs);
+  return {
+    finish() {
+      clearInterval(timer);
+      steps.forEach((s) => (s.status = "done"));
+      emit();
+    },
+  };
+}
 
-  if (!refresh) {
-    const cached = cachedResult(lead.id);
-    if (cached) {
-      onProgress?.(PIPELINE_STEPS.map((label) => ({ label, status: "done" as const })));
-      return cached;
-    }
+/** Calls the live edge function (Firecrawl + AI) and returns its result. */
+async function runLiveDeepDive(lead: Lead, opts: RunOptions): Promise<DeepDiveResult> {
+  const endpoint = deepDiveEndpoint()!;
+  const driver = progressDriver(opts.onProgress, opts.stepDelayMs);
+  try {
+    const res = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        lead: {
+          id: lead.id,
+          company: lead.company,
+          website: lead.website,
+          zone: lead.zone,
+          service: lead.service,
+          dealValue: lead.dealValue,
+          notes: lead.notes,
+        },
+      }),
+    });
+    if (!res.ok) throw new Error(`deep-dive endpoint ${res.status}: ${await res.text()}`);
+    const data = (await res.json()) as DeepDiveResult;
+    if (!data?.fields?.length) throw new Error("deep-dive endpoint returned no fields");
+    data.leadId = lead.id;
+    data.engine = "firecrawl+ai";
+    driver.finish();
+    return data;
+  } catch (err) {
+    driver.finish();
+    throw err;
   }
+}
 
+/** Deterministic, no-backend simulation behind the same contract. */
+async function runSimulatedDeepDive(lead: Lead, opts: RunOptions): Promise<DeepDiveResult> {
+  const { onProgress, stepDelayMs = 520 } = opts;
   const steps: AgentStep[] = PIPELINE_STEPS.map((label) => ({ label, status: "pending" as const }));
   for (let i = 0; i < steps.length; i++) {
     steps[i] = { ...steps[i], status: "running" };
@@ -187,15 +246,47 @@ export async function runDeepDive(lead: Lead, opts: RunOptions = {}): Promise<De
     steps[i] = { ...steps[i], status: "done" };
     onProgress?.(steps.map((s) => ({ ...s })));
   }
-
-  const result: DeepDiveResult = {
+  return {
     leadId: lead.id,
     company: lead.company,
     generatedAt: nowISO(),
+    engine: "simulated",
     fields: buildFields(lead),
     briefing: buildBriefing(lead),
     sources: buildSources(lead),
   };
+}
+
+/**
+ * Runs the research agent for a lead, emitting progress, and resolving with the
+ * structured Deep-Dive result.
+ *
+ * Uses the live Firecrawl + AI edge function when `VITE_DEEP_DIVE_URL` is set;
+ * otherwise (or if the live call fails) falls back to the local simulation so
+ * the UI always works. Results are cached per-company in localStorage.
+ */
+export async function runDeepDive(lead: Lead, opts: RunOptions = {}): Promise<DeepDiveResult> {
+  const { refresh = false } = opts;
+
+  if (!refresh) {
+    const cached = cachedResult(lead.id);
+    if (cached) {
+      opts.onProgress?.(PIPELINE_STEPS.map((label) => ({ label, status: "done" as const })));
+      return cached;
+    }
+  }
+
+  let result: DeepDiveResult;
+  if (isLiveEnabled()) {
+    try {
+      result = await runLiveDeepDive(lead, opts);
+    } catch (err) {
+      console.warn("[deep-dive] live research failed, using simulation:", err);
+      result = await runSimulatedDeepDive(lead, opts);
+    }
+  } else {
+    result = await runSimulatedDeepDive(lead, opts);
+  }
 
   writeJSON(CACHE_PREFIX + lead.id, result);
   return result;

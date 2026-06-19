@@ -81,11 +81,15 @@ export interface SalesBriefing {
   openingLines: string[];
 }
 
+/** How a Deep-Dive result was produced. */
+export type DeepDiveEngine = "firecrawl+ai" | "simulated";
+
 /** Full result returned by the Lead Deep-Dive research agent. */
 export interface DeepDiveResult {
   leadId: string;
   company: string;
   generatedAt: string; // ISO
+  engine: DeepDiveEngine;
   fields: DeepDiveField[];
   briefing: SalesBriefing;
   sources: SourceReceipt[];

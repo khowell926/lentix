@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import type { AgentStep, DeepDiveResult, Lead } from "@/types";
 import { formatUSD } from "@/lib/scoring";
-import { PIPELINE_STEPS, cachedResult, runDeepDive } from "@/lib/deepDiveAgent";
+import { PIPELINE_STEPS, cachedResult, isLiveEnabled, runDeepDive } from "@/lib/deepDiveAgent";
 
 interface Props {
   lead: Lead;
@@ -73,7 +73,10 @@ function ResearchColumn({ result }: { result: DeepDiveResult }) {
     <div>
       <div className="dd-meta">
         <span>
-          Generated {new Date(result.generatedAt).toLocaleString()} · {result.fields.length} fields
+          <span className={`engine-badge ${result.engine === "firecrawl+ai" ? "live" : "sim"}`}>
+            {result.engine === "firecrawl+ai" ? "● LIVE · Firecrawl + AI" : "◌ Simulated"}
+          </span>{" "}
+          · Generated {new Date(result.generatedAt).toLocaleString()} · {result.fields.length} fields
         </span>
         <div className="dd-sources">
           {result.sources.map((s) => (
@@ -164,8 +167,9 @@ function AgentProgress({ steps }: { steps: AgentStep[] }) {
     <div className="agent-run">
       <h3>⚡ Running Lead Deep-Dive</h3>
       <p className="sub">
-        The research agent is pulling licenses, insurance, corporate registry, and reviews — then
-        synthesizing a pitch-ready briefing. Every fact gets a source receipt.
+        {isLiveEnabled()
+          ? "Firecrawl is scraping the company site + web; the AI then synthesizes a 20-field profile and a pitch-ready briefing. Every fact gets a source receipt."
+          : "Running the built-in simulation (no live endpoint configured). Set VITE_DEEP_DIVE_URL to run real Firecrawl + AI research. Every fact still gets a source receipt."}
       </p>
       <div className="steps">
         {steps.map((s) => (
