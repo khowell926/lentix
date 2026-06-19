@@ -57,15 +57,37 @@ src/
     DeepDiveDrawer.tsx         # side-by-side brief + deal data, agent progress
 ```
 
-## The research agent
+## The research agent (live Firecrawl + AI)
 
-`src/lib/deepDiveAgent.ts` runs the Deep-Dive behind an async contract and
-streams progress steps (license → insurance → registry → reviews → briefing).
-Results are cached per-company in localStorage.
+The Deep-Dive runs against a real **`lead-deep-dive` edge function**
+(`supabase/functions/lead-deep-dive/`, Deno) that matches the production Lentix
+stack:
 
-In the production Lentix platform this is the `lead-deep-dive` edge function:
-Firecrawl + state license registries (MD MHIC, VA DPOR, DC DCRA) + corporate
-registry (MD SDAT, VA SCC, DC CCA) + reviews, synthesized by Gemini 2.5 Flash via
-the Lovable AI Gateway. This build ships a deterministic client-side simulation
-behind the **same interface** — swap `runDeepDive` for a `fetch()` to the edge
-function and the UI is unchanged (no server secrets required to demo it).
+1. **Firecrawl** scrapes the company website (markdown) and searches the web for
+   licensing / insurance / review signals.
+2. An **OpenAI-compatible AI gateway** (Gemini 2.5 Flash via the Lovable AI
+   Gateway by default) extracts the 20-field structured profile + sales briefing.
+3. Every fact comes back with a clickable **source receipt** + verified timestamp.
+
+Secrets stay server-side (never in client code), per the platform security posture.
+
+### Run it live
+
+```bash
+# 1. Backend secrets
+cp supabase/functions/.env.example supabase/functions/.env   # add FIRECRAWL_API_KEY + AI_API_KEY
+supabase functions serve lead-deep-dive --env-file supabase/functions/.env
+#   (or deploy: supabase functions deploy lead-deep-dive --no-verify-jwt
+#    then supabase secrets set --env-file supabase/functions/.env)
+
+# 2. Point the frontend at it
+cp .env.example .env.local
+#   VITE_DEEP_DIVE_URL=http://localhost:54321/functions/v1/lead-deep-dive
+npm run dev
+```
+
+`src/lib/deepDiveAgent.ts` calls the endpoint when `VITE_DEEP_DIVE_URL` is set
+(driving the step animation while the request is in flight) and **falls back to a
+deterministic simulation** when it isn't — or if the live call fails — so the app
+always runs with no backend. The drawer shows a **LIVE · Firecrawl + AI** vs
+**Simulated** badge so you can tell which produced a brief.
