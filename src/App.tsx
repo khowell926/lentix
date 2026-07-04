@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { OpportunityMap } from "@/components/OpportunityMap";
 import { LeadPipeline } from "@/components/LeadPipeline";
+import { GapRadar } from "@/components/GapRadar";
 import { ensureSeedVersion } from "@/lib/storage";
 
-type View = "map" | "pipeline";
+type View = "map" | "pipeline" | "gap";
 
 export default function App() {
   const [view, setView] = useState<View>("map");
@@ -36,6 +37,12 @@ export default function App() {
           >
             Lead Deep-Dive
           </button>
+          <button
+            className={`tab ${view === "gap" ? "active" : ""}`}
+            onClick={() => setView("gap")}
+          >
+            AI Gap Radar
+          </button>
         </nav>
 
         <div className="topbar-spacer" />
@@ -46,7 +53,9 @@ export default function App() {
         </div>
       </header>
 
-      <main className="content">{view === "map" ? <OpportunityMap /> : <LeadPipeline />}</main>
+      <main className="content">
+        {view === "map" ? <OpportunityMap /> : view === "pipeline" ? <LeadPipeline /> : <GapRadar />}
+      </main>
     </div>
   );
 }

@@ -2,7 +2,7 @@
 
 > **Lentix** — *Know the market. Win the contract.*
 
-Two front-end features for the [Lentix](https://lentix.lovable.app) lead-to-revenue
+Three front-end features for the [Lentix](https://lentix.lovable.app) lead-to-revenue
 platform (DMV fleet-wash & drone services), built as a standalone **React + Vite +
 TypeScript** app:
 
@@ -16,6 +16,14 @@ TypeScript** app:
    fires a research agent and opens a drawer showing a **20-field structured
    profile + AI sales briefing side-by-side with the deal data**. Every fact
    carries a clickable source receipt and verified timestamp.
+
+3. **AI Gap Radar** — a market-scouting module for finding **industries behind
+   in AI adoption**. 15 curated US verticals scored 0-100 on a composite
+   **Gap Score** (adoption gap x market size x digital readiness / vendor
+   competition), plotted on an adoption-vs-market-size **quadrant chart**
+   (the goldmine is top-left: big market, nobody's home). Each market opens a
+   **playbook drawer**: why the buyers are stuck, two concrete AI products to
+   build (with pricing model + build effort), and a cold-pitch opener.
 
 These mirror Lentix modules 04/09/10 (mapping + opportunity scoring) and 05
 (Lead Research / Deep-Dive) from the platform feature breakdown.

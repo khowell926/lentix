@@ -100,3 +100,54 @@ export interface AgentStep {
   label: string;
   status: "pending" | "running" | "done";
 }
+
+/* ============================================================
+   AI Gap Radar — markets behind in AI adoption
+   ============================================================ */
+
+/** Broad sector bucket used by the Gap Radar filter bar. */
+export type GapSector =
+  | "Trades & Field Services"
+  | "Logistics"
+  | "Healthcare"
+  | "Professional Services"
+  | "Hospitality & Consumer"
+  | "Industrial";
+
+/** How crowded the AI-vendor landscape already is for this market. */
+export type CompetitionLevel = "low" | "medium" | "high";
+
+/** A concrete AI product/service you could sell into a lagging market. */
+export interface AiPlay {
+  name: string;
+  /** What the product does, in one sentence. */
+  what: string;
+  /** How it makes money (pricing model + realistic price point). */
+  monetization: string;
+  /** Build difficulty for a small team. */
+  effort: "weekend-mvp" | "1-3 months" | "serious build";
+}
+
+/** An industry vertical scored for its AI-adoption gap. */
+export interface GapMarket {
+  id: string;
+  name: string;
+  sector: GapSector;
+  /** Estimated US annual industry revenue, USD. */
+  marketSizeUSD: number;
+  /** Estimated share of firms actively using AI, percent (0–100). */
+  aiAdoptionPct: number;
+  /** 0–100: how digitized / reachable the buyers already are. */
+  digitalReadiness: number;
+  /** Typical annual contract value for a software/AI vendor, USD. */
+  avgDealSizeUSD: number;
+  competition: CompetitionLevel;
+  /** Why this market is stuck (the pain you sell against). */
+  painPoints: string[];
+  /** Concrete products you could ship into the gap. */
+  aiPlays: AiPlay[];
+  /** One-line opener for a cold pitch into this market. */
+  pitchLine: string;
+  /** Where the adoption estimate comes from. */
+  sourceNote: string;
+}
