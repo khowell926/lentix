@@ -284,6 +284,77 @@ body {
 .rt-label { color: var(--lr-ink-0); font-weight: 600; }
 .rt-row span:last-child { text-align: right; font-weight: 700; }
 
+/* ---------- beta: badge, capper mode, post-pick form ---------- */
+.lr-beta {
+  font-size: 9px; font-weight: 800; letter-spacing: 0.1em;
+  color: var(--lr-gold); border: 1px solid rgba(234, 179, 8, 0.45);
+  background: var(--lr-gold-soft);
+  padding: 3px 8px; border-radius: 999px; margin-left: 10px;
+  letter-spacing: 0.12em;
+}
+
+.lr-capper {
+  border: 1px solid var(--lr-border-strong); background: var(--lr-bg-2);
+  color: var(--lr-ink-2); font-weight: 600; font-size: 12px;
+  padding: 8px 14px; border-radius: 999px; transition: all 0.15s ease;
+}
+.lr-capper:hover { color: var(--lr-ink-0); }
+.lr-capper.active {
+  color: var(--lr-gold); background: var(--lr-gold-soft);
+  border-color: rgba(234, 179, 8, 0.5);
+}
+
+.lr-capper-bar {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  background: var(--lr-gold-soft);
+  border: 1px dashed rgba(234, 179, 8, 0.5);
+  border-radius: var(--lr-radius);
+  padding: 14px 18px;
+  font-size: 13px; color: var(--lr-ink-1);
+}
+.lr-capper-bar b { color: var(--lr-gold); }
+.lr-capper-bar > div:first-child { flex: 1; min-width: 260px; }
+.lr-capper-actions { display: flex; align-items: center; gap: 12px; }
+
+.pk-grade {
+  display: flex; align-items: center; gap: 8px;
+  border-top: 1px dashed rgba(234, 179, 8, 0.4);
+  padding-top: 10px; font-size: 11px; color: var(--lr-ink-3);
+}
+.pk-grade-btn {
+  border: 1px solid var(--lr-border-strong); background: var(--lr-bg-3);
+  color: var(--lr-ink-1); font-weight: 700; font-size: 11px;
+  padding: 5px 12px; border-radius: 999px; transition: all 0.12s ease;
+}
+.pk-grade-btn.won:hover { color: var(--lr-cash); border-color: var(--lr-cash); background: var(--lr-cash-soft); }
+.pk-grade-btn.lost:hover { color: var(--lr-miss); border-color: var(--lr-miss); background: var(--lr-miss-soft); }
+.pk-grade-btn.push:hover { color: var(--lr-ink-0); }
+
+.postpick .pp-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+}
+@media (max-width: 720px) { .postpick .pp-grid { grid-template-columns: 1fr; } }
+.postpick label {
+  display: flex; flex-direction: column; gap: 5px;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.05em;
+  text-transform: uppercase; color: var(--lr-ink-3);
+}
+.postpick .pp-wide { grid-column: span 2; }
+@media (max-width: 720px) { .postpick .pp-wide { grid-column: span 1; } }
+.postpick input, .postpick select, .postpick textarea {
+  background: var(--lr-bg-2); border: 1px solid var(--lr-border-strong);
+  border-radius: var(--lr-radius-sm); color: var(--lr-ink-0);
+  font-family: inherit; font-size: 13px; font-weight: 500;
+  padding: 9px 11px; text-transform: none; letter-spacing: normal;
+}
+.postpick input:focus, .postpick select:focus, .postpick textarea:focus {
+  outline: none; border-color: var(--lr-cash);
+}
+.postpick textarea { resize: vertical; }
+.pp-submit { margin-top: 16px; width: 100%; padding: 12px; }
+
+.lr-footer a { color: var(--lr-cash); }
+
 /* ---------- footer ---------- */
 .lr-footer {
   border-top: 1px solid var(--lr-border);

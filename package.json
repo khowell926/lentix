@@ -1,7 +1,7 @@
 {
   "name": "lentix-opportunity-intel",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0-beta",
   "type": "module",
   "description": "Lentix — Opportunity Map + AI Lead Deep-Dive (Lead-to-Revenue Intelligence)",
   "scripts": {

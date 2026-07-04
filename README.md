@@ -40,6 +40,11 @@ These mirror Lentix modules 04/09/10 (mapping + opportunity scoring) and 05
 - **Track Record** — 30 days of graded picks, cumulative-units chart,
   win rate + ROI stats, and a full result table (wins AND losses) — the
   transparency page that sells the subscription.
+- **Capper mode (beta)** — toggle in the top bar: post new picks from a
+  form and grade pending picks (won/lost/push) straight off the card, with
+  payout units computed from the odds. The board persists in localStorage
+  (`src/picks/boardStore.ts`), so the beta can be run nightly with real
+  picks before the database exists.
 - Responsible-play footer (21+, 1-800-GAMBLER, no-guarantee language).
 
 Dev: `npm run dev` then open `http://localhost:5173/picks.html`.

@@ -1,4 +1,4 @@
-import type { Pick } from "./types";
+import type { Pick, PickStatus } from "./types";
 import { formatOdds } from "./access";
 
 const STATUS_LABEL: Record<Pick["status"], string> = {
@@ -12,9 +12,11 @@ interface Props {
   pick: Pick;
   locked: boolean;
   onUnlock: () => void;
+  /** Present only in capper mode: grade a pending pick. */
+  onGrade?: (id: string, status: Exclude<PickStatus, "pending">) => void;
 }
 
-export function PickCard({ pick, locked, onUnlock }: Props) {
+export function PickCard({ pick, locked, onUnlock, onGrade }: Props) {
   const time = new Date(pick.startTime).toLocaleTimeString("en-US", {
     hour: "numeric",
     minute: "2-digit",
@@ -71,6 +73,21 @@ export function PickCard({ pick, locked, onUnlock }: Props) {
         )}
         {pick.tier === "free" && <span className="pk-free">FREE PICK</span>}
       </div>
+
+      {onGrade && pick.status === "pending" && (
+        <div className="pk-grade">
+          <span>Grade:</span>
+          <button className="pk-grade-btn won" onClick={() => onGrade(pick.id, "won")}>
+            Won
+          </button>
+          <button className="pk-grade-btn lost" onClick={() => onGrade(pick.id, "lost")}>
+            Lost
+          </button>
+          <button className="pk-grade-btn push" onClick={() => onGrade(pick.id, "push")}>
+            Push
+          </button>
+        </div>
+      )}
     </div>
   );
 }
