@@ -28,6 +28,22 @@ TypeScript** app:
 These mirror Lentix modules 04/09/10 (mapping + opportunity scoring) and 05
 (Lead Research / Deep-Dive) from the platform feature breakdown.
 
+## LockRoom — pay-for-picks platform (second app, same repo)
+
+`picks.html` serves **LockRoom**, a standalone sports-picks storefront MVP:
+
+- **Today's Board** — free picks shown in full (the hook); premium picks
+  blurred behind a lock with the writeup hidden until purchase.
+- **Paywall** — Day Pass / Monthly / Season plans with a simulated checkout
+  that issues a client-side access pass (`src/picks/access.ts`); the
+  `purchase()` stub is the single swap-point for real Stripe Checkout.
+- **Track Record** — 30 days of graded picks, cumulative-units chart,
+  win rate + ROI stats, and a full result table (wins AND losses) — the
+  transparency page that sells the subscription.
+- Responsible-play footer (21+, 1-800-GAMBLER, no-guarantee language).
+
+Dev: `npm run dev` then open `http://localhost:5173/picks.html`.
+
 ## Run
 
 ```bash

@@ -13,4 +13,12 @@ export default defineConfig({
     port: 5173,
     host: true,
   },
+  build: {
+    rollupOptions: {
+      input: {
+        main: resolve(__dirname, "index.html"),
+        picks: resolve(__dirname, "picks.html"),
+      },
+    },
+  },
 });
