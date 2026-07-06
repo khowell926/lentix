@@ -2,8 +2,15 @@ import sqlite3
 from datetime import datetime, timedelta
 from typing import Optional
 import os
+import logging
+import shutil
+from pathlib import Path
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "picks.db")
+BACKUP_DIR = os.path.join(os.path.dirname(__file__), "backups")
 
 
 def init_db():
@@ -57,7 +64,7 @@ def add_pick(
     event_id: Optional[str] = None,
     commence_time: Optional[str] = None,
     discord_message_id: Optional[str] = None,
-) -> int:
+) -> Optional[int]:
     """
     Add a new pick to the database.
 
@@ -75,26 +82,35 @@ def add_pick(
         discord_message_id: Optional Discord message ID for reference
 
     Returns:
-        The ID of the inserted pick
+        The ID of the inserted pick, or None if failed
     """
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
 
-    cursor.execute("""
-        INSERT INTO picks (
+        cursor.execute("""
+            INSERT INTO picks (
+                sport, league, pick_text, matchup, odds, confidence, tier,
+                posted_by, event_id, commence_time, discord_message_id
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
             sport, league, pick_text, matchup, odds, confidence, tier,
             posted_by, event_id, commence_time, discord_message_id
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """, (
-        sport, league, pick_text, matchup, odds, confidence, tier,
-        posted_by, event_id, commence_time, discord_message_id
-    ))
+        ))
 
-    pick_id = cursor.lastrowid
-    conn.commit()
-    conn.close()
+        pick_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
 
-    return pick_id
+        logger.info(f"Pick {pick_id} added: {sport} {pick_text} @ {odds}")
+        return pick_id
+
+    except sqlite3.Error as e:
+        logger.error(f"Database error in add_pick: {e}")
+        return None
+    except Exception as e:
+        logger.error(f"Unexpected error in add_pick: {e}")
+        return None
 
 
 def get_pending() -> list:
@@ -122,24 +138,38 @@ def settle_pick(pick_id: int, status: str) -> bool:
         status: Settlement status ('won', 'lost', 'push', 'void')
 
     Returns:
-        True if successful, False if pick not found
+        True if successful, False if pick not found or error
     """
-    if status not in ("won", "lost", "push", "void"):
-        raise ValueError(f"Invalid status: {status}")
+    try:
+        if status not in ("won", "lost", "push", "void"):
+            logger.error(f"Invalid status for pick {pick_id}: {status}")
+            return False
 
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
 
-    cursor.execute("""
-        UPDATE picks SET status = ?, settled_at = CURRENT_TIMESTAMP
-        WHERE id = ?
-    """, (status, pick_id))
+        cursor.execute("""
+            UPDATE picks SET status = ?, settled_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        """, (status, pick_id))
 
-    success = cursor.rowcount > 0
-    conn.commit()
-    conn.close()
+        success = cursor.rowcount > 0
+        conn.commit()
+        conn.close()
 
-    return success
+        if success:
+            logger.info(f"Pick {pick_id} settled as {status}")
+        else:
+            logger.warning(f"Pick {pick_id} not found")
+
+        return success
+
+    except sqlite3.Error as e:
+        logger.error(f"Database error in settle_pick: {e}")
+        return False
+    except Exception as e:
+        logger.error(f"Unexpected error in settle_pick: {e}")
+        return False
 
 
 def get_record(days: Optional[int] = None) -> dict:
@@ -205,7 +235,47 @@ def get_record(days: Optional[int] = None) -> dict:
     }
 
 
+def backup_database() -> Optional[str]:
+    """
+    Backup database to backups/ directory.
+    Keeps last 14 days of backups.
+
+    Returns:
+        Path to backup file or None if failed
+    """
+    if not os.path.exists(DB_PATH):
+        logger.warning("Database does not exist, skipping backup")
+        return None
+
+    try:
+        # Create backup directory
+        Path(BACKUP_DIR).mkdir(exist_ok=True)
+
+        # Create timestamped backup
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup_path = os.path.join(BACKUP_DIR, f"picks_{timestamp}.db")
+
+        shutil.copy2(DB_PATH, backup_path)
+        logger.info(f"Database backed up to {backup_path}")
+
+        # Clean up old backups (keep last 14 days)
+        cutoff = datetime.now() - timedelta(days=14)
+        for backup_file in Path(BACKUP_DIR).glob("picks_*.db"):
+            file_time = datetime.fromtimestamp(backup_file.stat().st_mtime)
+            if file_time < cutoff:
+                backup_file.unlink()
+                logger.info(f"Deleted old backup: {backup_file.name}")
+
+        return backup_path
+
+    except Exception as e:
+        logger.error(f"Error backing up database: {e}")
+        return None
+
+
 if __name__ == "__main__":
     # Initialize the database
     init_db()
     print(f"Database initialized at {DB_PATH}")
+    backup_database()
+    print(f"Backup created in {BACKUP_DIR}")

@@ -4,8 +4,12 @@ from discord import app_commands
 import os
 import logging
 from dotenv import load_dotenv
-from db import init_db, add_pick, get_pending, settle_pick
+from db import init_db, add_pick, get_pending, settle_pick, backup_database
 from settle import settle_all_pending
+from record_card import generate_record_card
+from io import BytesIO
+from datetime import datetime
+import pytz
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -28,7 +32,12 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 async def on_ready():
     """Called when the bot is ready."""
     print(f"{bot.user} has connected to Discord!")
-    settle_loop.start()
+    if not settle_loop.is_running():
+        settle_loop.start()
+    if not weekly_summary_task.is_running():
+        weekly_summary_task.start()
+    if not nightly_backup_task.is_running():
+        nightly_backup_task.start()
     try:
         synced = await bot.tree.sync()
         print(f"Synced {len(synced)} command(s)")
@@ -351,6 +360,188 @@ async def manual_grade(
     except Exception as e:
         await interaction.followup.send(f"❌ Error grading pick: {str(e)}")
         logger.error(f"Error in /grade command: {e}")
+
+
+@bot.tree.command(
+    name="record",
+    description="Post the picks record as an image card"
+)
+async def post_record(interaction: discord.Interaction):
+    """Post the record card to the channel."""
+    try:
+        await interaction.response.defer()
+
+        # Generate card image
+        img = generate_record_card()
+
+        # Convert to bytes
+        img_bytes = BytesIO()
+        img.save(img_bytes, format="PNG")
+        img_bytes.seek(0)
+
+        # Send as file
+        await interaction.followup.send(
+            file=discord.File(img_bytes, filename="record.png")
+        )
+
+    except Exception as e:
+        await interaction.followup.send(f"❌ Error generating record card: {str(e)}")
+        logger.error(f"Error in /record command: {e}")
+
+
+@bot.tree.command(
+    name="pending",
+    description="[Admin] List all unsettled picks with IDs"
+)
+@app_commands.checks.has_role("Picks Admin")
+async def list_pending(interaction: discord.Interaction):
+    """List all pending picks for manual review."""
+    try:
+        await interaction.response.defer()
+
+        pending = get_pending()
+
+        if not pending:
+            await interaction.followup.send("✅ No pending picks!")
+            return
+
+        # Build table
+        msg = f"**{len(pending)} Pending Picks:**\n```\n"
+        msg += "ID    Sport  Pick                   Odds   Posted\n"
+        msg += "-" * 60 + "\n"
+
+        for pick in pending[:20]:  # Limit to 20 for readability
+            created = datetime.fromisoformat(pick["created_at"]).strftime("%m-%d")
+            pick_text = pick["pick_text"][:18].ljust(18)
+            msg += f"{pick['id']:4d}  {pick['sport']:5s}  {pick_text}  {pick['odds']:5d}  {created}\n"
+
+        if len(pending) > 20:
+            msg += f"\n... and {len(pending) - 20} more\n"
+
+        msg += "```"
+        await interaction.followup.send(msg)
+
+    except discord.ext.commands.MissingRole:
+        await interaction.response.send_message(
+            "❌ You need the 'Picks Admin' role to use this command",
+            ephemeral=True
+        )
+    except Exception as e:
+        await interaction.followup.send(f"❌ Error listing picks: {str(e)}")
+        logger.error(f"Error in /pending command: {e}")
+
+
+@tasks.loop(hours=1)
+async def weekly_summary_task():
+    """Post weekly summary every Sunday at 6pm ET."""
+    et = pytz.timezone("America/New_York")
+    now = datetime.now(et)
+
+    # Check if it's Sunday at 6pm (within the hour)
+    if now.weekday() != 6 or now.hour != 18:
+        return
+
+    try:
+        logger.info("Running weekly summary task...")
+
+        # Find #announcements channel
+        announcements_channel = None
+        for guild in bot.guilds:
+            for channel in guild.text_channels:
+                if channel.name == "announcements":
+                    announcements_channel = channel
+                    break
+
+        if not announcements_channel:
+            logger.warning("Could not find #announcements channel")
+            return
+
+        # Generate record card for last 7 days
+        img = generate_record_card(days=7)
+        img_bytes = BytesIO()
+        img.save(img_bytes, format="PNG")
+        img_bytes.seek(0)
+
+        # Get best and worst picks
+        from db import get_record
+        import sqlite3
+        DB_PATH = os.path.join(os.path.dirname(__file__), "picks.db")
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT * FROM picks
+            WHERE created_at >= datetime('now', '-7 days')
+            AND status IN ('won', 'lost')
+            ORDER BY created_at DESC
+        """)
+
+        settled_picks = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+
+        best_pick = None
+        worst_pick = None
+
+        for pick in settled_picks:
+            if pick["status"] == "won":
+                if best_pick is None or pick["odds"] > best_pick["odds"]:
+                    best_pick = pick
+            elif pick["status"] == "lost":
+                if worst_pick is None:
+                    worst_pick = pick
+
+        # Build summary message
+        record = get_record(days=7)
+        wins = record["wins"]
+        losses = record["losses"]
+        net_units = record["net_units"]
+
+        summary_msg = f"**THE WEEK HONEST**\n\n"
+        summary_msg += f"**{wins}-{losses}** on the week, **{net_units:+.2f}u**"
+
+        if best_pick:
+            summary_msg += f"\n**Best:** {best_pick['pick_text']} @ {best_pick['odds']} ✅"
+        if worst_pick:
+            summary_msg += f"\n**Worst:** {worst_pick['pick_text']} @ {worst_pick['odds']} ❌"
+
+        await announcements_channel.send(
+            summary_msg,
+            file=discord.File(img_bytes, filename="weekly_record.png")
+        )
+        logger.info("Weekly summary posted")
+
+    except Exception as e:
+        logger.error(f"Error in weekly_summary_task: {e}")
+
+
+@weekly_summary_task.before_loop
+async def before_weekly_summary_task():
+    """Wait for bot to be ready."""
+    await bot.wait_until_ready()
+
+
+@tasks.loop(hours=24)
+async def nightly_backup_task():
+    """Backup database nightly at midnight ET."""
+    et = pytz.timezone("America/New_York")
+    now = datetime.now(et)
+
+    # Run at midnight (0:00 AM)
+    if now.hour != 0:
+        return
+
+    try:
+        logger.info("Running nightly backup...")
+        backup_database()
+    except Exception as e:
+        logger.error(f"Error in nightly_backup_task: {e}")
+
+
+@nightly_backup_task.before_loop
+async def before_nightly_backup_task():
+    """Wait for bot to be ready."""
+    await bot.wait_until_ready()
 
 
 def run_bot():
