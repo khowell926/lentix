@@ -43,3 +43,5 @@ __pycache__/
 dist/
 build/
 picks.db
+backups/
+logs/
