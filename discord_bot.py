@@ -39,8 +39,14 @@ async def on_ready():
     if not nightly_backup_task.is_running():
         nightly_backup_task.start()
     try:
-        synced = await bot.tree.sync()
-        print(f"Synced {len(synced)} command(s)")
+        # Per-guild sync makes slash commands appear instantly (global sync
+        # can take up to an hour). Copy the global command set into every
+        # guild the bot is in, then also do a global sync as a fallback.
+        for guild in bot.guilds:
+            bot.tree.copy_global_to(guild=guild)
+            synced = await bot.tree.sync(guild=guild)
+            print(f"Synced {len(synced)} command(s) to guild: {guild.name}")
+        await bot.tree.sync()
     except Exception as e:
         print(f"Failed to sync commands: {e}")
 
