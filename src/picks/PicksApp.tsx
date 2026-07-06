@@ -1,8 +1,9 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Pick, PickStatus } from "./types";
 import { LAST_NIGHT } from "./data";
 import { hasAccess, activePass, planFor, clearPass } from "./access";
 import { loadBoard, postPick, gradePick, resetBoard } from "./boardStore";
+import { encodeBoard, decodeBoard, sharedBoardHash, shareUrl } from "./share";
 import { PickCard } from "./PickCard";
 import { Paywall } from "./Paywall";
 import { PostPick } from "./PostPick";
@@ -16,19 +17,43 @@ export const BETA_VERSION = "v0.2.0-beta";
 export function PicksApp() {
   const [view, setView] = useState<View>("board");
   const [board, setBoard] = useState<Pick[]>(() => loadBoard());
+  const [sharedBoard, setSharedBoard] = useState<Pick[] | null>(null);
   const [paywallOpen, setPaywallOpen] = useState(false);
   const [postOpen, setPostOpen] = useState(false);
   const [capperMode, setCapperMode] = useState(false);
+  const [shareState, setShareState] = useState<"idle" | "copied">("idle");
   const [accessTick, setAccessTick] = useState(0);
+
+  // A shared link (#b=…) shows the sender's board read-only.
+  const sharedMode = sharedBoard !== null;
+  useEffect(() => {
+    const hash = sharedBoardHash();
+    if (!hash) return;
+    decodeBoard(hash)
+      .then(setSharedBoard)
+      .catch(() => setSharedBoard(null));
+  }, []);
 
   const unlocked = useMemo(() => hasAccess(), [accessTick]);
   const pass = useMemo(() => activePass(), [accessTick]);
 
-  const freePicks = board.filter((p) => p.tier === "free");
-  const premiumPicks = board.filter((p) => p.tier === "premium");
+  const shownBoard = sharedBoard ?? board;
+  const freePicks = shownBoard.filter((p) => p.tier === "free");
+  const premiumPicks = shownBoard.filter((p) => p.tier === "premium");
 
   const grade = (id: string, status: Exclude<PickStatus, "pending">) =>
     setBoard(gradePick(board, id, status));
+
+  const shareBoard = async () => {
+    const url = shareUrl(await encodeBoard(board));
+    try {
+      await navigator.clipboard.writeText(url);
+      setShareState("copied");
+      window.setTimeout(() => setShareState("idle"), 2500);
+    } catch {
+      window.prompt("Copy your board link:", url);
+    }
+  };
 
   return (
     <div className="lr-app">
@@ -53,13 +78,15 @@ export function PicksApp() {
 
         <div className="lr-spacer" />
 
-        <button
-          className={`lr-capper ${capperMode ? "active" : ""}`}
-          onClick={() => setCapperMode((c) => !c)}
-          title="Capper mode: post and grade picks"
-        >
-          {capperMode ? "◉ Capper mode" : "○ Capper mode"}
-        </button>
+        {!sharedMode && (
+          <button
+            className={`lr-capper ${capperMode ? "active" : ""}`}
+            onClick={() => setCapperMode((c) => !c)}
+            title="Capper mode: post and grade picks"
+          >
+            {capperMode ? "◉ Capper mode" : "○ Capper mode"}
+          </button>
+        )}
 
         {unlocked && pass ? (
           <div className="lr-member">
@@ -96,15 +123,38 @@ export function PicksApp() {
             </p>
           </section>
 
-          {capperMode && (
+          {sharedMode && (
             <section className="lr-capper-bar">
               <div>
-                <b>Capper mode</b> — post tonight's plays and grade them when they settle. Everything
-                saves to this browser in the beta; the production build syncs to the database.
+                <b>Shared board</b> — you're viewing a snapshot the capper sent you. Premium plays
+                unlock with a pass.
+              </div>
+              <div className="lr-capper-actions">
+                <button
+                  className="lr-signout"
+                  onClick={() => {
+                    window.location.hash = "";
+                    setSharedBoard(null);
+                  }}
+                >
+                  exit snapshot
+                </button>
+              </div>
+            </section>
+          )}
+
+          {capperMode && !sharedMode && (
+            <section className="lr-capper-bar">
+              <div>
+                <b>Capper mode</b> — post tonight's plays and grade them when they settle. Hit{" "}
+                <b>Share board</b> to copy a link that carries your current board to any phone.
               </div>
               <div className="lr-capper-actions">
                 <button className="lr-cta" onClick={() => setPostOpen(true)}>
                   + Post a pick
+                </button>
+                <button className="lr-capper" onClick={shareBoard}>
+                  {shareState === "copied" ? "✓ Link copied" : "Share board"}
                 </button>
                 <button className="lr-signout" onClick={() => setBoard(resetBoard())}>
                   reset board
@@ -125,7 +175,7 @@ export function PicksApp() {
                   pick={p}
                   locked={false}
                   onUnlock={() => setPaywallOpen(true)}
-                  onGrade={capperMode ? grade : undefined}
+                  onGrade={capperMode && !sharedMode ? grade : undefined}
                 />
               ))}
             </div>
@@ -145,7 +195,7 @@ export function PicksApp() {
                   pick={p}
                   locked={!unlocked && !capperMode}
                   onUnlock={() => setPaywallOpen(true)}
-                  onGrade={capperMode ? grade : undefined}
+                  onGrade={capperMode && !sharedMode ? grade : undefined}
                 />
               ))}
             </div>
