@@ -32,3 +32,14 @@ pnpm-debug.log*
 .env
 .env.local
 .env.*.local
+
+# python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+picks.db
